@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aro-mongo-app
+  labels:
+    app: aro-mongo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aro-mongo-app
+  template:
+    metadata:
+      labels:
+        app: aro-mongo-app
+    spec:
+      containers:
+        - name: aro-mongo-app
+          # Update this image to your registry reference
+          image: aro-mongo-app:local
+          imagePullPolicy: IfNotPresent
+          args: ["--server", "--port", "8080"]
+          env:
+            # Prefer a full connection string via secret
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-credentials
+                  key: uri
+            # Optional: enable TLS and provide CA path if needed
+            - name: MONGODB_TLS
+              value: "false"
+            - name: MONGODB_TLS_CA_FILE
+              value: "/etc/mongo-ca/tls-ca.crt"
+            # X.509 auth example: enable and point to client cert+key PEM
+            - name: MONGODB_AUTH_MECHANISM
+              value: "MONGODB-X509"
+            - name: MONGODB_AUTH_SOURCE
+              value: "$external"
+            - name: MONGODB_TLS_CERT_KEY_FILE
+              value: "/etc/mongo-client/client.pem"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          volumeMounts:
+            - name: mongo-ca
+              mountPath: /etc/mongo-ca
+              readOnly: true
+            - name: mongo-client-cert
+              mountPath: /etc/mongo-client
+              readOnly: true
+      volumes:
+        - name: mongo-ca
+          secret:
+            secretName: mongodb-ca
+            optional: true
+        - name: mongo-client-cert
+          secret:
+            secretName: mongodb-client-cert
+            optional: true

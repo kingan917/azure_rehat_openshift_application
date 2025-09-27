@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aro-mongo-app
+  labels:
+    app: aro-mongo-app
+spec:
+  selector:
+    app: aro-mongo-app
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+
